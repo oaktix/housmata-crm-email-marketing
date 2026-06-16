@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, Mail, ShieldAlert, Sparkles } from 'lucide-react';
+import { Lock, Mail, ShieldAlert, CheckCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +10,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isForgotMode, setIsForgotMode] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Check if already logged in
   useEffect(() => {
@@ -25,33 +28,68 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setErrorMessage('Please fill in all fields.');
-      return;
-    }
-    setLoading(true);
     setErrorMessage('');
+    setSuccessMessage('');
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
+    if (isForgotMode) {
+      if (!email) {
+        setErrorMessage('Please fill in your email address.');
+        return;
       }
+      setLoading(true);
 
-      // Successful login, redirect to dashboard
-      router.push('/');
-      router.refresh();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Something went wrong.');
-    } finally {
-      setLoading(false);
+      try {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to trigger password recovery.');
+        }
+
+        setSuccessMessage(data.message || 'Verification link sent!');
+        setEmail('');
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Something went wrong.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      if (!email || !password) {
+        setErrorMessage('Please fill in all fields.');
+        return;
+      }
+      setLoading(true);
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Authentication failed');
+        }
+
+        router.push('/');
+        router.refresh();
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Something went wrong.');
+      } finally {
+        setLoading(false);
+      }
     }
+  };
+
+  const toggleMode = () => {
+    setIsForgotMode(!isForgotMode);
+    setErrorMessage('');
+    setSuccessMessage('');
   };
 
   return (
@@ -80,39 +118,25 @@ export default function LoginPage() {
         .login-header {
           text-align: center;
           margin-bottom: 32px;
-        }
-        .login-logo {
-          display: inline-flex;
+          display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: center;
-          width: 56px;
-          height: 56px;
-          background-color: var(--brand-teal);
-          color: var(--brand-mint);
-          border-radius: 50%;
-          font-weight: 800;
-          font-size: 24px;
-          margin-bottom: 16px;
-          box-shadow: 0 0 20px var(--brand-mint-glow);
         }
-        .login-title {
-          font-size: 26px;
-          font-weight: 800;
-          letter-spacing: -0.5px;
-          color: var(--brand-teal);
+        .logo-dark {
+          display: none;
         }
         @media (prefers-color-scheme: dark) {
-          .login-title {
-            color: var(--text-primary);
+          .logo-light {
+            display: none;
           }
-        }
-        .login-title span {
-          color: var(--brand-mint);
+          .logo-dark {
+            display: block;
+          }
         }
         .login-subtitle {
           font-size: 14px;
           color: var(--text-secondary);
-          margin-top: 8px;
+          margin-top: 12px;
         }
         .input-icon-wrapper {
           position: relative;
@@ -146,6 +170,51 @@ export default function LoginPage() {
           gap: 10px;
           margin-bottom: 24px;
         }
+        .success-banner {
+          background-color: rgba(16, 185, 129, 0.15);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: var(--radius-sm);
+          padding: 12px 16px;
+          color: var(--status-success);
+          font-size: 13px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 24px;
+        }
+        .forgot-link-btn {
+          background: none;
+          border: none;
+          color: var(--brand-mint-solid);
+          font-weight: 700;
+          font-size: 13px;
+          cursor: pointer;
+          align-self: flex-end;
+          padding: 4px 0;
+          transition: opacity 0.2s ease;
+        }
+        .forgot-link-btn:hover {
+          text-decoration: underline;
+        }
+        .back-login-btn {
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          font-weight: 700;
+          font-size: 13px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          margin-top: 16px;
+          width: 100%;
+          transition: color 0.2s ease;
+        }
+        .back-login-btn:hover {
+          color: var(--text-primary);
+        }
         @keyframes slide-up {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
@@ -154,12 +223,12 @@ export default function LoginPage() {
 
       <div className="login-card">
         <div className="login-header">
-          <div className="login-logo">H</div>
-          <h1 className="login-title">
-            hous<span>mata</span> CRM
-          </h1>
+          <img src="/logo.png" className="logo-light" alt="Housmata Logo" style={{ height: '45px', width: 'auto', display: 'block' }} />
+          <img src="/alt_logo.png" className="logo-dark" alt="Housmata Logo" style={{ height: '45px', width: 'auto', display: 'block' }} />
           <p className="login-subtitle">
-            Enter credentials to access Email Marketing System
+            {isForgotMode 
+              ? 'Request a password recovery link via email' 
+              : 'Enter credentials to access Email Marketing System'}
           </p>
         </div>
 
@@ -167,6 +236,13 @@ export default function LoginPage() {
           <div className="error-banner">
             <ShieldAlert size={16} />
             <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="success-banner">
+            <CheckCircle size={16} />
+            <span>{successMessage}</span>
           </div>
         )}
 
@@ -186,24 +262,61 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Password</label>
-            <div className="input-icon-wrapper">
-              <Lock size={16} className="input-icon" />
-              <input
-                type="password"
-                className="form-control login-input"
-                placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          {!isForgotMode && (
+            <>
+              <div className="form-group" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>Password</label>
+                  <button type="button" className="forgot-link-btn" onClick={toggleMode}>
+                    Forgot Password?
+                  </button>
+                </div>
+                <div className="input-icon-wrapper" style={{ marginTop: '8px', position: 'relative' }}>
+                  <Lock size={16} className="input-icon" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="form-control login-input"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    style={{ paddingRight: '44px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '14px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0,
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
 
           <button type="submit" className="btn btn-mint login-btn" disabled={loading}>
-            {loading ? 'Authenticating...' : 'Sign In to Hub'}
+            {loading 
+              ? (isForgotMode ? 'Sending Link...' : 'Authenticating...') 
+              : (isForgotMode ? 'Send Reset Link' : 'Sign In to Hub')}
           </button>
+
+          {isForgotMode && (
+            <button type="button" className="back-login-btn" onClick={toggleMode}>
+              <ArrowLeft size={14} /> Back to Login
+            </button>
+          )}
         </form>
       </div>
     </div>

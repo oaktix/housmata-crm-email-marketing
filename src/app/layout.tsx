@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'Housmata CRM - Email Marketing Hub',
   description: 'Internal campaign publisher and performance tracker for Housmata CRM alerts.',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.png',
   },
 };
 

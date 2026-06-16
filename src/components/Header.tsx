@@ -76,6 +76,17 @@ export default function Header({ user }: HeaderProps) {
           color: var(--status-danger);
           border-color: rgba(239, 68, 68, 0.2);
         }
+        .logo-dark {
+          display: none;
+        }
+        @media (prefers-color-scheme: dark) {
+          .logo-light {
+            display: none;
+          }
+          .logo-dark {
+            display: block;
+          }
+        }
         @media (max-width: 600px) {
           .user-info {
             display: none;
@@ -84,10 +95,8 @@ export default function Header({ user }: HeaderProps) {
       `}</style>
       <div className="container header-content">
         <div className="logo-container" style={{ cursor: 'pointer' }} onClick={() => router.push('/')}>
-          <div className="logo-icon">H</div>
-          <h1 className="logo-text">
-            hous<span>mata</span>
-          </h1>
+          <img src="/logo.png" className="logo-light" alt="Housmata Logo" style={{ height: '32px', width: 'auto', display: 'block' }} />
+          <img src="/alt_logo.png" className="logo-dark" alt="Housmata Logo" style={{ height: '32px', width: 'auto', display: 'block' }} />
         </div>
 
         {user && (

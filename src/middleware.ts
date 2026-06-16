@@ -10,7 +10,10 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.includes('.') || // e.g. favicon.ico, images
     pathname === '/login' ||
+    pathname === '/reset-password' ||
     pathname.startsWith('/api/auth/login') ||
+    pathname.startsWith('/api/auth/forgot-password') ||
+    pathname.startsWith('/api/auth/reset-password') ||
     pathname.startsWith('/api/track') // Open tracking must remain public
   ) {
     return NextResponse.next();

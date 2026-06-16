@@ -44,14 +44,35 @@ export async function POST(req: NextRequest) {
     if (staff && !staffError) {
       staffProfile = staff;
     } else {
-      // Fallback if public.staff_members table doesn't exist yet or query fails
-      console.warn('Could not retrieve staff profile, using auth user metadata:', staffError?.message);
-      staffProfile = {
-        id: authData.user.id,
-        email: authData.user.email,
-        name: authData.user.user_metadata?.name || 'Housmata Staff',
-        role: authData.user.email === 'hello@housmata.com' ? 'admin' : 'marketer',
-      };
+      // Attempt to seed dynamically into staff_members table if they exist in auth but table was empty
+      if (!staffError) {
+        const { data: newStaff, error: insertError } = await supabaseAdmin
+          .from('staff_members')
+          .insert({
+            id: authData.user.id,
+            email: authData.user.email,
+            name: authData.user.user_metadata?.name || 'Housmata Staff',
+            role: authData.user.email === 'hello@housmata.com' ? 'admin' : 'marketer',
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (newStaff && !insertError) {
+          staffProfile = newStaff;
+        }
+      }
+
+      if (!staffProfile) {
+        // Fallback if public.staff_members table doesn't exist yet or query fails
+        console.warn('Could not retrieve or create staff profile, using auth user metadata:', staffError?.message);
+        staffProfile = {
+          id: authData.user.id,
+          email: authData.user.email,
+          name: authData.user.user_metadata?.name || 'Housmata Staff',
+          role: authData.user.email === 'hello@housmata.com' ? 'admin' : 'marketer',
+        };
+      }
     }
 
     // 3. Set secure cookie
