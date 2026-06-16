@@ -6,8 +6,8 @@ export async function GET() {
     // Attempt to query the profiles or users table
     // In our example, we check the public.users or profiles table.
     const { data: users, error } = await supabaseAdmin
-      .from('users')
-      .select('id, email, first_name, last_name, role, status')
+      .from('User')
+      .select('id, email, firstName, lastName, role')
       .limit(100);
 
     if (error || !users || users.length === 0) {
@@ -23,7 +23,17 @@ export async function GET() {
       return NextResponse.json(mockUsers);
     }
 
-    return NextResponse.json(users);
+    // Map keys to match the frontend expectations
+    const mappedUsers = users.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      first_name: u.firstName || '',
+      last_name: u.lastName || '',
+      role: u.role || 'USER',
+      status: 'active'
+    }));
+
+    return NextResponse.json(mappedUsers);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
