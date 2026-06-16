@@ -13,7 +13,11 @@ interface Recipient {
   role: string;
 }
 
-export default function EmailEditor() {
+interface EmailEditorProps {
+  initialEmails?: string[];
+}
+
+export default function EmailEditor({ initialEmails }: EmailEditorProps) {
   const [category, setCategory] = useState<EmailCategory>('Regular Alerts');
   const [subject, setSubject] = useState('Important Update from Housmata CRM');
   const [title, setTitle] = useState('New System Update');
@@ -31,7 +35,8 @@ export default function EmailEditor() {
   ]);
 
   const [users, setUsers] = useState<Recipient[]>([]);
-  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>(initialEmails || []);
+  const [filterQuery, setFilterQuery] = useState('');
   const [isPreviewDark, setIsPreviewDark] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | null, text: string }>({ type: null, text: '' });
@@ -43,12 +48,16 @@ export default function EmailEditor() {
       .then(res => res.json())
       .then(data => {
         setUsers(data);
-        if (data.length > 0) {
-          setSelectedEmails(data.map((u: any) => u.email));
+        if (!initialEmails || initialEmails.length === 0) {
+          if (data.length > 0) {
+            setSelectedEmails(data.map((u: any) => u.email));
+          }
+        } else {
+          setSelectedEmails(initialEmails);
         }
       })
       .catch(err => console.error('Failed to load recipients:', err));
-  }, []);
+  }, [initialEmails]);
 
   // Update Preview iframe
   const compiledHtml = compileEmailTemplate({
@@ -390,29 +399,51 @@ export default function EmailEditor() {
 
           {/* Recipient Targeting Selector */}
           <div className="form-group" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <label className="form-label" style={{ marginBottom: 0 }}>Target Recipients ({selectedEmails.length}/{users.length})</label>
               <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={toggleSelectAll}>
                 {selectedEmails.length === users.length ? 'Deselect All' : 'Select All'}
               </button>
             </div>
+            
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search target list by email or name..."
+              value={filterQuery}
+              onChange={e => setFilterQuery(e.target.value)}
+              style={{ fontSize: '12px', padding: '8px 12px', marginBottom: '8px' }}
+            />
+
             <div className="recipient-list">
-              {users.map(user => (
-                <div key={user.id} className="recipient-item">
-                  <input 
-                    type="checkbox" 
-                    id={`u-${user.id}`}
-                    checked={selectedEmails.includes(user.email)} 
-                    onChange={() => toggleSelectEmail(user.email)}
-                  />
-                  <label htmlFor={`u-${user.id}`} style={{ display: 'flex', justifyContent: 'space-between', width: '100%', cursor: 'pointer' }}>
-                    <span>{user.first_name} {user.last_name} ({user.email})</span>
-                    <span style={{ fontSize: '10px', backgroundColor: 'var(--border-color)', padding: '2px 6px', borderRadius: '10px', textTransform: 'uppercase' }}>
-                      {user.role}
-                    </span>
-                  </label>
+              {users.filter(u => 
+                u.email.toLowerCase().includes(filterQuery.toLowerCase()) ||
+                `${u.first_name} ${u.last_name}`.toLowerCase().includes(filterQuery.toLowerCase())
+              ).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '16px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  No matching contacts.
                 </div>
-              ))}
+              ) : (
+                users.filter(u => 
+                  u.email.toLowerCase().includes(filterQuery.toLowerCase()) ||
+                  `${u.first_name} ${u.last_name}`.toLowerCase().includes(filterQuery.toLowerCase())
+                ).map(user => (
+                  <div key={user.id} className="recipient-item">
+                    <input 
+                      type="checkbox" 
+                      id={`u-${user.id}`}
+                      checked={selectedEmails.includes(user.email)} 
+                      onChange={() => toggleSelectEmail(user.email)}
+                    />
+                    <label htmlFor={`u-${user.id}`} style={{ display: 'flex', justifyContent: 'space-between', width: '100%', cursor: 'pointer' }}>
+                      <span>{user.first_name} {user.last_name} ({user.email})</span>
+                      <span style={{ fontSize: '10px', backgroundColor: 'var(--border-color)', padding: '2px 6px', borderRadius: '10px', textTransform: 'uppercase' }}>
+                        {user.role}
+                      </span>
+                    </label>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

@@ -76,13 +76,29 @@ export async function POST(req: NextRequest) {
       // Generate tracking URL linking to this dispatch log ID
       const trackingUrl = `${appUrl}/api/track?id=${logId}`;
       
+      // Replace personalization tags in subject, title, and body for this recipient
+      const personalizedSubject = subject
+        .replace(/\{\{first_name\}\}/gi, recipient.first_name || '')
+        .replace(/\{\{last_name\}\}/gi, recipient.last_name || '')
+        .replace(/\{\{email\}\}/gi, recipient.email || '');
+
+      const personalizedTitle = title
+        .replace(/\{\{first_name\}\}/gi, recipient.first_name || '')
+        .replace(/\{\{last_name\}\}/gi, recipient.last_name || '')
+        .replace(/\{\{email\}\}/gi, recipient.email || '');
+
+      const personalizedBody = body
+        .replace(/\{\{first_name\}\}/gi, recipient.first_name || '')
+        .replace(/\{\{last_name\}\}/gi, recipient.last_name || '')
+        .replace(/\{\{email\}\}/gi, recipient.email || '');
+
       // Compile template
       const htmlContent = compileEmailTemplate({
         category: category as EmailCategory,
-        subject,
+        subject: personalizedSubject,
         recipientName: recipient.first_name,
-        title,
-        body,
+        title: personalizedTitle,
+        body: personalizedBody,
         actionText,
         actionUrl,
         properties,
@@ -93,7 +109,7 @@ export async function POST(req: NextRequest) {
         // Send email via AWS SES / SMTP
         await sendEmail({
           to: recipient.email,
-          subject,
+          subject: personalizedSubject,
           html: htmlContent,
         });
 

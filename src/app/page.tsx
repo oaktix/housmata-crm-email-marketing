@@ -1,83 +1,158 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, BarChart3, Settings, AlertCircle } from 'lucide-react';
+import { Mail, Settings, Users, LayoutDashboard, History, Menu, X } from 'lucide-react';
+import DashboardOverview from '@/components/DashboardOverview';
 import EmailEditor from '@/components/EmailEditor';
+import RecipientsDirectory from '@/components/RecipientsDirectory';
 import Analytics from '@/components/Analytics';
 import StaffSettings from '@/components/StaffSettings';
 
-type ActiveTab = 'campaigns' | 'analytics' | 'settings';
+type ActiveTab = 'dashboard' | 'campaigns' | 'recipients' | 'analytics' | 'settings';
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('campaigns');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [composeEmails, setComposeEmails] = useState<string[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleComposeEmails = (emails: string[]) => {
+    setComposeEmails(emails);
+    setActiveTab('campaigns');
+  };
+
+  const selectTab = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+  };
+
+  const navItems = [
+    { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+    { id: 'campaigns', label: 'Campaigns', icon: Mail },
+    { id: 'recipients', label: 'Recipients', icon: Users },
+    { id: 'analytics', label: 'Delivery Logs', icon: History },
+    { id: 'settings', label: 'SMTP & Staff', icon: Settings },
+  ] as const;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="layout-grid">
       <style jsx>{`
-        .sub-header {
+        .layout-grid {
+          display: grid;
+          grid-template-columns: 260px 1fr;
+          min-height: calc(100vh - 90px);
+          margin-top: 10px;
+          gap: 32px;
+          width: 100%;
+        }
+        .sidebar {
+          background-color: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-lg);
+          padding: 24px 16px;
+          height: fit-content;
           display: flex;
-          justify-content: space-between;
+          flex-direction: column;
+          gap: 8px;
+          box-shadow: var(--shadow-md);
+        }
+        .sidebar-item {
+          display: flex;
           align-items: center;
-          border-bottom: 1px solid var(--border-color);
-          padding-bottom: 16px;
-          margin-bottom: 8px;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-        .intro-text h2 {
-          font-size: 24px;
-          font-weight: 800;
-          letter-spacing: -0.5px;
-        }
-        .intro-text p {
-          font-size: 14px;
+          gap: 12px;
+          padding: 12px 16px;
+          border-radius: var(--radius-sm);
           color: var(--text-secondary);
-          margin-top: 4px;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: none;
+          background: none;
+          width: 100%;
+          text-align: left;
         }
-        .tab-content {
+        .sidebar-item:hover {
+          background-color: var(--bg-input);
+          color: var(--text-primary);
+        }
+        .sidebar-item.active {
+          background-color: var(--brand-teal);
+          color: #ffffff;
+        }
+        .main-content {
+          min-width: 0; /* Prevents grid layout breaking with tables */
           animation: fade-in 0.3s ease-out;
+        }
+        .mobile-nav-toggle {
+          display: none;
+          background-color: var(--bg-card);
+          border: 1px solid var(--border-color);
+          padding: 10px;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          color: var(--text-primary);
+          align-items: center;
+          gap: 8px;
+          font-weight: 700;
+          font-size: 14px;
+          margin-bottom: 16px;
+          width: fit-content;
         }
         @keyframes fade-in {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @media (max-width: 900px) {
+          .layout-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .sidebar {
+            display: ${mobileMenuOpen ? 'flex' : 'none'};
+            position: fixed;
+            top: 80px;
+            left: 24px;
+            right: 24px;
+            z-index: 90;
+            box-shadow: var(--shadow-lg);
+          }
+          .mobile-nav-toggle {
+            display: inline-flex;
+          }
+        }
       `}</style>
 
-      {/* Sub Header & Tab Menu */}
-      <div className="sub-header">
-        <div className="intro-text">
-          <h2>Email Marketing Suite</h2>
-          <p>Compose responsive theme-based email campaigns and monitor read activity</p>
-        </div>
+      {/* Mobile Toggle Button */}
+      <button 
+        className="mobile-nav-toggle" 
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+      >
+        {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+        <span>Menu / Tool Suite</span>
+      </button>
 
-        <nav className="nav-tabs">
-          <button 
-            className={`nav-tab ${activeTab === 'campaigns' ? 'active' : ''}`}
-            onClick={() => setActiveTab('campaigns')}
-          >
-            <Mail size={16} />
-            Campaigns
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            <BarChart3 size={16} />
-            Analytics & Logs
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
-          >
-            <Settings size={16} />
-            SMTP & Staff
-          </button>
-        </nav>
-      </div>
+      {/* Navigation Sidebar */}
+      <aside className="sidebar">
+        {navItems.map(item => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
+              onClick={() => selectTab(item.id)}
+            >
+              <Icon size={18} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </aside>
 
-      {/* Active Tab Content Rendering */}
-      <div className="tab-content">
-        {activeTab === 'campaigns' && <EmailEditor />}
+      {/* Workspace Pages Content */}
+      <div className="main-content">
+        {activeTab === 'dashboard' && <DashboardOverview />}
+        {activeTab === 'campaigns' && <EmailEditor initialEmails={composeEmails} />}
+        {activeTab === 'recipients' && <RecipientsDirectory onComposeEmails={handleComposeEmails} />}
         {activeTab === 'analytics' && <Analytics />}
         {activeTab === 'settings' && <StaffSettings />}
       </div>

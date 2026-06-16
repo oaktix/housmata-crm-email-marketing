@@ -15,6 +15,7 @@ export default function StaffSettings() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<'admin' | 'marketer'>('marketer');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, text: string }>({ type: null, text: '' });
@@ -35,27 +36,31 @@ export default function StaffSettings() {
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) {
-      setStatus({ type: 'error', text: 'Name and email are required.' });
+    if (!name || !email || !password) {
+      setStatus({ type: 'error', text: 'Name, email and temporary password are required.' });
+      return;
+    }
+    if (password.length < 6) {
+      setStatus({ type: 'error', text: 'Password must be at least 6 characters long.' });
       return;
     }
     setLoading(true);
     setStatus({ type: null, text: '' });
 
     try {
-      const randomId = crypto.randomUUID(); // Mock UUID since we are on administration side
       const res = await fetch('/api/staff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: randomId, email, name, role }),
+        body: JSON.stringify({ email, name, role, password }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to register staff member.');
 
-      setStatus({ type: 'success', text: 'Staff member registered successfully!' });
+      setStatus({ type: 'success', text: data.message || 'Staff member registered successfully!' });
       setName('');
       setEmail('');
+      setPassword('');
       fetchStaff();
     } catch (err: any) {
       setStatus({ type: 'error', text: err.message });
@@ -144,6 +149,17 @@ export default function StaffSettings() {
                 value={email} 
                 onChange={e => setEmail(e.target.value)} 
                 placeholder="e.g. samuel@housmata.com"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Temporary Password</label>
+              <input 
+                type="password" 
+                className="form-control" 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                placeholder="Minimum 6 characters"
               />
             </div>
 

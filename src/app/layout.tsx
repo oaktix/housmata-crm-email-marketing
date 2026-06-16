@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
+import Header from '@/components/Header';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -14,26 +16,27 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = cookies();
+  const sessionCookie = cookieStore.get('housmata_session');
+  
+  let user = null;
+  if (sessionCookie && sessionCookie.value) {
+    try {
+      user = JSON.parse(sessionCookie.value).user;
+    } catch (e) {
+      console.error('Failed to parse user session cookie:', e);
+    }
+  }
+
   return (
     <html lang="en">
       <body>
-        <header className="app-header">
-          <div className="container header-content">
-            <div className="logo-container">
-              <div className="logo-icon">H</div>
-              <h1 className="logo-text">
-                hous<span>mata</span>
-              </h1>
-            </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-              Campaign Hub 🚀
-            </div>
-          </div>
-        </header>
-        <main className="container" style={{ flex: 1, padding: '24px' }}>
+        <Header user={user} />
+        <main className="container" style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column' }}>
           {children}
         </main>
       </body>
     </html>
   );
 }
+
