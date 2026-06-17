@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       }, trackingUrl);
 
       try {
-        // Send email via AWS SES / SMTP
+        // Send email via Resend
         await sendEmail({
           to: recipient.email,
           subject: personalizedSubject,

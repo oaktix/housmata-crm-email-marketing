@@ -197,14 +197,14 @@ export default function StaffSettings() {
         </div>
       </div>
 
-      {/* SMTP configuration guide */}
+      {/* Email delivery configuration guide */}
       <div className="card">
         <h2 className="card-title">
           <Key size={20} color="var(--brand-mint)" />
-          SMTP & Server Setup
+          Email & Server Setup
         </h2>
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          Follow these guidelines to authenticate your SMTP server (AWS SES) and Supabase database.
+          Follow these guidelines to authenticate your Resend email service and Supabase database.
         </p>
 
         <div className="setup-guide">
@@ -222,18 +222,15 @@ export default function StaffSettings() {
           }}>
 {`NEXT_PUBLIC_SUPABASE_URL=https://your-proj.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=ey... (service role key)
-SMTP_HOST=email-smtp.us-east-1.amazonaws.com
-SMTP_PORT=465
-SMTP_USER=AKIA...
-SMTP_PASSWORD=BP...
-SMTP_FROM_EMAIL=no-reply@housmata.com
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=Housmata CRM <updates@housmata.com.ng>
 NEXT_PUBLIC_APP_URL=https://housmata-crm-marketing.vercel.app`}
           </pre>
         </div>
 
         <div className="setup-guide">
-          <strong style={{ display: 'block', marginBottom: '4px' }}>2. AWS SES Domain Sandbox</strong>
-          Ensure your sending address (`SMTP_FROM_EMAIL`) or root domain is fully verified in the Amazon SES Console, and you are out of the SES sandbox (or sending only to verified test emails).
+          <strong style={{ display: 'block', marginBottom: '4px' }}>2. Resend Domain Verification</strong>
+          Ensure the domain of your sending address (`RESEND_FROM_EMAIL`) is fully verified in the Resend dashboard (Domains → Add Domain → add the DNS records). Until the domain is verified, Resend only allows sending to your own account email.
         </div>
 
         <div className="setup-guide" style={{ borderLeft: '4px solid var(--brand-mint)' }}>

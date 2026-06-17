@@ -1,20 +1,11 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-const smtpHost = process.env.SMTP_HOST || 'smtp.mail.us-east-1.awsapps.com'; // Default placeholder, user overrides it
-const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
-const smtpUser = process.env.SMTP_USER || '';
-const smtpPassword = process.env.SMTP_PASSWORD || '';
-const smtpFromEmail = process.env.SMTP_FROM_EMAIL || 'no-reply@housmata.com';
+const fromEmail = process.env.RESEND_FROM_EMAIL || 'Housmata CRM <no-reply@housmata.com>';
 
-const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpPort === 465, // True for 465, false for 587/other
-  auth: {
-    user: smtpUser,
-    pass: smtpPassword,
-  },
-});
+// Fall back to a placeholder so the SDK can be instantiated at build/import time
+// when RESEND_API_KEY is unset. A missing real key surfaces as an API error at
+// send time, which sendEmail() throws below — preserving the throw-on-failure contract.
+const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
 
 export interface SendMailOptions {
   to: string;
@@ -23,12 +14,16 @@ export interface SendMailOptions {
 }
 
 export async function sendEmail({ to, subject, html }: SendMailOptions) {
-  const info = await transporter.sendMail({
-    from: `"Housmata CRM" <${smtpFromEmail}>`,
+  const { data, error } = await resend.emails.send({
+    from: fromEmail,
     to,
     subject,
     html,
   });
 
-  return info;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 }

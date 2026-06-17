@@ -30,7 +30,7 @@ export default function DashboardPage() {
     { id: 'campaigns', label: 'Campaigns', icon: Mail },
     { id: 'recipients', label: 'Recipients', icon: Users },
     { id: 'analytics', label: 'Delivery Logs', icon: History },
-    { id: 'settings', label: 'SMTP & Staff', icon: Settings },
+    { id: 'settings', label: 'Email & Staff', icon: Settings },
   ] as const;
 
   return (
