@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
 
       try {
         // Send email via Resend
-        await sendEmail({
+        const sendRes = await sendEmail({
           to: recipient.email,
           subject: personalizedSubject,
           html: htmlContent,
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         if (campaignId) {
           await supabaseAdmin
             .from('email_logs')
-            .update({ status: 'sent', sent_at: new Date().toISOString() })
+            .update({ status: 'sent', sent_at: new Date().toISOString(), provider_message_id: sendRes?.id ?? null })
             .eq('id', logId);
         }
 

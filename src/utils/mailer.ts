@@ -13,7 +13,7 @@ export interface SendMailOptions {
   html: string;
 }
 
-export async function sendEmail({ to, subject, html }: SendMailOptions) {
+export async function sendEmail({ to, subject, html }: SendMailOptions): Promise<{ id: string } | null> {
   const { data, error } = await resend.emails.send({
     from: fromEmail,
     to,
