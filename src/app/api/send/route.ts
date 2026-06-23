@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
       actionUrl,
       properties,
       features,
+      attachments,
       staffId,
     } = bodyData;
 
@@ -106,11 +107,20 @@ export async function POST(req: NextRequest) {
       }, trackingUrl);
 
       try {
-        // Send email via Resend
+        // Send email via Resend. The client sends attachments as
+        // { filename, url, contentType, size }; map them to the mailer's
+        // shape so a hosted attachment URL reaches Resend as { filename, path }.
         const sendRes = await sendEmail({
           to: recipient.email,
           subject: personalizedSubject,
           html: htmlContent,
+          attachments: attachments?.length
+            ? attachments.map((a: any) => ({
+                filename: a.filename,
+                path: a.url || a.path,
+                content: a.content,
+              }))
+            : undefined,
         });
 
         // Update log to 'sent'

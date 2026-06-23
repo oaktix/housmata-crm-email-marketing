@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, Plus, Trash2, Eye, EyeOff, Sparkles, AlertCircle, Building2, Send, Check } from 'lucide-react';
+import { Mail, Plus, Trash2, Eye, EyeOff, Sparkles, AlertCircle, Building2, Send, Check, Paperclip, Image as ImageIcon, Link2, Upload, Download } from 'lucide-react';
 import { compileEmailTemplate, EmailCategory } from '@/utils/templates';
 import confetti from 'canvas-confetti';
 
@@ -34,6 +34,19 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
     { title: 'Interactive Analytics', description: 'Track all sales pipelines with gorgeous charts.', icon: '📊' }
   ]);
 
+  // Email attachments (hosted in Supabase Storage)
+  const [attachments, setAttachments] = useState<Array<{ filename: string; url: string; contentType: string; size: number }>>([]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+
+  // Inline body image insertion
+  const [insertImageUrl, setInsertImageUrl] = useState('');
+  const [uploadingBodyImage, setUploadingBodyImage] = useState(false);
+
+  // Per-property preview fetch state (keyed by index)
+  const [previewLoadingIdx, setPreviewLoadingIdx] = useState<number | null>(null);
+  const [propertyError, setPropertyError] = useState<{ idx: number; text: string } | null>(null);
+  const [propUploadingIdx, setPropUploadingIdx] = useState<number | null>(null);
+
   const [users, setUsers] = useState<Recipient[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<string[]>(initialEmails || []);
   const [filterQuery, setFilterQuery] = useState('');
@@ -41,6 +54,135 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | null, text: string }>({ type: null, text: '' });
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
+  // File input + textarea refs
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const bodyImageInputRef = useRef<HTMLInputElement>(null);
+  const propImageInputRef = useRef<HTMLInputElement>(null);
+  const propImageTargetIdx = useRef<number | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  // Upload a single file to /api/upload, returning the stored asset metadata.
+  const uploadFile = async (file: File): Promise<{ url: string; filename: string; contentType: string; size: number }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    return data;
+  };
+
+  // Handle attachment file selection
+  const handleAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploadingAttachments(true);
+    try {
+      for (const file of Array.from(files)) {
+        const result = await uploadFile(file);
+        setAttachments(prev => [...prev, result]);
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: `Attachment upload failed: ${err.message}` });
+    } finally {
+      setUploadingAttachments(false);
+      if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+    }
+  };
+
+  // Escape a value before interpolating it into a raw HTML attribute to
+  // prevent attribute breakout / injection.
+  const escAttr = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  // Insert an <img> tag into the body at the caret (or append to the end)
+  const insertImageIntoBody = (imageUrl: string) => {
+    const tag = `<img src="${escAttr(imageUrl)}" alt="" style="max-width:100%;border-radius:8px;margin:12px 0;" />`;
+    const textarea = bodyRef.current;
+    if (textarea && typeof textarea.selectionStart === 'number') {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const next = body.slice(0, start) + tag + body.slice(end);
+      setBody(next);
+    } else {
+      setBody(body + tag);
+    }
+  };
+
+  // Upload an image file then insert it into the body
+  const handleBodyImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingBodyImage(true);
+    try {
+      const result = await uploadFile(file);
+      insertImageIntoBody(result.url);
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: `Image upload failed: ${err.message}` });
+    } finally {
+      setUploadingBodyImage(false);
+      if (bodyImageInputRef.current) bodyImageInputRef.current.value = '';
+    }
+  };
+
+  const handleInsertImageUrl = () => {
+    if (!insertImageUrl.trim()) return;
+    insertImageIntoBody(insertImageUrl.trim());
+    setInsertImageUrl('');
+  };
+
+  // Upload an image for a specific property row
+  const handlePropImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const idx = propImageTargetIdx.current;
+    if (!file || idx === null) return;
+    setPropUploadingIdx(idx);
+    try {
+      const result = await uploadFile(file);
+      const copy = [...properties];
+      copy[idx] = { ...copy[idx], image: result.url };
+      setProperties(copy);
+    } catch (err: any) {
+      setPropertyError({ idx, text: `Image upload failed: ${err.message}` });
+    } finally {
+      setPropUploadingIdx(null);
+      propImageTargetIdx.current = null;
+      if (propImageInputRef.current) propImageInputRef.current.value = '';
+    }
+  };
+
+  // Fetch Open Graph preview for a property's URL and populate empty fields
+  const handleFetchPreview = async (idx: number) => {
+    const prop = properties[idx];
+    if (!prop.url || prop.url === '#') {
+      setPropertyError({ idx, text: 'Enter a Property URL first.' });
+      return;
+    }
+    setPreviewLoadingIdx(idx);
+    setPropertyError(null);
+    try {
+      const res = await fetch(`/api/preview?url=${encodeURIComponent(prop.url)}`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Preview fetch failed');
+
+      const copy = [...properties];
+      const updated = { ...copy[idx] };
+      if (result.image) updated.image = result.image;
+      if (result.title && !updated.title) updated.title = result.title;
+      if (result.siteName && !updated.location) updated.location = result.siteName;
+      if (result.price && !updated.price) updated.price = result.price;
+      copy[idx] = updated;
+      setProperties(copy);
+    } catch (err: any) {
+      setPropertyError({ idx, text: err.message });
+    } finally {
+      setPreviewLoadingIdx(null);
+    }
+  };
 
   // Fetch recipients
   useEffect(() => {
@@ -121,6 +263,7 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
           actionUrl,
           properties: category === 'New Property Alert' ? properties : [],
           features: category === 'New Features Alert' ? features : [],
+          attachments,
           recipients: selectedRecipients,
         }),
       });
@@ -319,12 +462,45 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
 
           <div className="form-group">
             <label className="form-label">Alert Content (HTML / Text)</label>
-            <textarea 
-              className="form-control" 
-              rows={4} 
-              value={body} 
+            <textarea
+              ref={bodyRef}
+              className="form-control"
+              rows={4}
+              value={body}
               onChange={e => setBody(e.target.value)}
             />
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '8px' }}>
+              <input
+                ref={bodyImageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleBodyImageUpload}
+              />
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                disabled={uploadingBodyImage}
+                onClick={() => bodyImageInputRef.current?.click()}
+              >
+                <Upload size={14} /> {uploadingBodyImage ? 'Uploading...' : 'Upload Image'}
+              </button>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Paste image URL to insert..."
+                value={insertImageUrl}
+                onChange={e => setInsertImageUrl(e.target.value)}
+                style={{ flex: 1, minWidth: '160px', fontSize: '12px', padding: '8px 12px' }}
+              />
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                onClick={handleInsertImageUrl}
+              >
+                <Link2 size={14} /> Insert URL
+              </button>
+            </div>
           </div>
 
           {/* New Property Fields */}
@@ -340,6 +516,13 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
                   <Plus size={12} /> Add
                 </button>
               </label>
+              <input
+                ref={propImageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handlePropImageUpload}
+              />
               {properties.map((prop, idx) => (
                 <div key={idx} className="dynamic-row">
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
@@ -350,14 +533,45 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
                       const copy = [...properties]; copy[idx].price = e.target.value; setProperties(copy);
                     }} />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '8px' }}>
+                  <div style={{ marginBottom: '8px' }}>
                     <input type="text" className="form-control" placeholder="Location" value={prop.location} onChange={e => {
                       const copy = [...properties]; copy[idx].location = e.target.value; setProperties(copy);
                     }} />
-                    <button className="btn btn-secondary" style={{ color: 'var(--status-danger)' }} onClick={() => setProperties(properties.filter((_, i) => i !== idx))}>
-                      <Trash2 size={14} /> Remove
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', marginBottom: '8px' }}>
+                    <input type="text" className="form-control" placeholder="Image URL" value={prop.image} onChange={e => {
+                      const copy = [...properties]; copy[idx].image = e.target.value; setProperties(copy);
+                    }} />
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                      disabled={propUploadingIdx === idx}
+                      onClick={() => { propImageTargetIdx.current = idx; propImageInputRef.current?.click(); }}
+                    >
+                      <ImageIcon size={14} /> {propUploadingIdx === idx ? 'Uploading...' : 'Upload image'}
                     </button>
                   </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', marginBottom: '8px' }}>
+                    <input type="text" className="form-control" placeholder="Property URL" value={prop.url} onChange={e => {
+                      const copy = [...properties]; copy[idx].url = e.target.value; setProperties(copy);
+                    }} />
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                      disabled={previewLoadingIdx === idx}
+                      onClick={() => handleFetchPreview(idx)}
+                    >
+                      <Download size={14} /> {previewLoadingIdx === idx ? 'Fetching...' : 'Fetch preview'}
+                    </button>
+                  </div>
+                  {propertyError && propertyError.idx === idx && (
+                    <div style={{ fontSize: '12px', color: 'var(--status-danger)', marginBottom: '8px' }}>
+                      {propertyError.text}
+                    </div>
+                  )}
+                  <button className="btn btn-secondary" style={{ color: 'var(--status-danger)', width: '100%' }} onClick={() => setProperties(properties.filter((_, i) => i !== idx))}>
+                    <Trash2 size={14} /> Remove
+                  </button>
                 </div>
               ))}
             </div>
@@ -396,6 +610,48 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
               ))}
             </div>
           )}
+
+          {/* Attachments */}
+          <div className="form-group" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Paperclip size={14} /> Attachments ({attachments.length})
+              </span>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 8px', fontSize: '12px' }}
+                disabled={uploadingAttachments}
+                onClick={() => attachmentInputRef.current?.click()}
+              >
+                <Plus size={12} /> {uploadingAttachments ? 'Uploading...' : 'Add Files'}
+              </button>
+            </label>
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleAttachmentChange}
+            />
+            {attachments.length > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                {attachments.map((att, idx) => (
+                  <div key={idx} className="dynamic-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {att.filename} <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>({(att.size / 1024).toFixed(1)} KB)</span>
+                    </span>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ color: 'var(--status-danger)', padding: '4px 8px', fontSize: '12px' }}
+                      onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Recipient Targeting Selector */}
           <div className="form-group" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
