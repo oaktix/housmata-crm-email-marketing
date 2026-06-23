@@ -17,6 +17,10 @@ interface EmailEditorProps {
   initialEmails?: string[];
 }
 
+// localStorage key for the full last-campaign snapshot (full-fidelity resend
+// without requiring a DB migration). Bumped if the snapshot shape changes.
+const LAST_CAMPAIGN_STORAGE_KEY = 'housmata:last_campaign:v1';
+
 export default function EmailEditor({ initialEmails }: EmailEditorProps) {
   const [category, setCategory] = useState<EmailCategory>('Regular Alerts');
   const [subject, setSubject] = useState('Important Update from Housmata CRM');
@@ -248,6 +252,46 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
   const handleLoadLastCampaign = async () => {
     setLoadingLast(true);
     setStatusMessage({ type: null, text: '' });
+
+    // First, try a full-fidelity restore from localStorage (no DB needed).
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = window.localStorage.getItem(LAST_CAMPAIGN_STORAGE_KEY);
+        if (raw) {
+          const snapshot = JSON.parse(raw);
+          if (snapshot && typeof snapshot === 'object') {
+            setCategory(snapshot.category as EmailCategory);
+            setSubject(snapshot.subject ?? '');
+            setTitle(snapshot.title ?? '');
+            setBody(snapshot.body ?? '');
+            setActionText(snapshot.actionText ?? '');
+            setActionUrl(snapshot.actionUrl ?? '');
+            if (Array.isArray(snapshot.properties) && snapshot.properties.length > 0) {
+              setProperties(snapshot.properties);
+            }
+            if (Array.isArray(snapshot.features) && snapshot.features.length > 0) {
+              setFeatures(snapshot.features);
+            }
+            setAttachments(snapshot.attachments || []);
+
+            // Restore the previous audience, intersected with currently
+            // loaded users so we never select emails that no longer exist.
+            const recipientEmails: string[] = Array.isArray(snapshot.recipientEmails) ? snapshot.recipientEmails : [];
+            const known = new Set(users.map(u => u.email));
+            setSelectedEmails(recipientEmails.filter(e => known.has(e)));
+            // Prevent the initial /api/users effect from clobbering this selection.
+            lastCampaignLoadedRef.current = true;
+
+            setStatusMessage({ type: 'success', text: 'Loaded last campaign — review and click Send to resend.' });
+            setLoadingLast(false);
+            return;
+          }
+        }
+      } catch {
+        // Corrupt/unavailable localStorage; fall through to the server fallback.
+      }
+    }
+
     try {
       const res = await fetch('/api/campaigns/last');
       const data = await res.json();
@@ -352,6 +396,30 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
           spread: 80,
           origin: { y: 0.6 }
         });
+      }
+
+      // Persist a full-fidelity snapshot of the current editor state so
+      // "Resend Last Campaign" can restore everything from localStorage
+      // (no DB migration needed). Only snapshot when something actually sent.
+      if (sentCount > 0 && typeof window !== 'undefined') {
+        try {
+          const snapshot = {
+            category,
+            subject,
+            title,
+            body,
+            actionText,
+            actionUrl,
+            properties,
+            features,
+            attachments,
+            recipientEmails: selectedEmails,
+          };
+          window.localStorage.setItem(LAST_CAMPAIGN_STORAGE_KEY, JSON.stringify(snapshot));
+        } catch {
+          // localStorage can throw (private mode / quota); ignore — the
+          // server-side fallback still provides a partial resend.
+        }
       }
     } catch (err: any) {
       setStatusMessage({ type: 'error', text: err.message });
