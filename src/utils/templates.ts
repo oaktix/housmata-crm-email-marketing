@@ -90,7 +90,7 @@ export function compileEmailTemplate(data: EmailTemplateData, trackingUrl?: stri
             <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px;">
               ${data.properties.map(prop => `
                 <div class="property-card" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff;">
-                  <img src="${prop.image}" alt="${prop.title}" style="width: 100%; height: 180px; object-fit: cover;" />
+                  ${prop.image ? `<img src="${prop.image}" alt="${prop.title}" style="width: 100%; height: 180px; object-fit: cover;" />` : ''}
                   <div style="padding: 16px;">
                     <div style="font-weight: bold; font-size: 18px; color: ${brandTeal};">${prop.price}</div>
                     <div style="font-weight: bold; font-size: 16px; margin-top: 4px; color: #1e293b;">${prop.title}</div>
