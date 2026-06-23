@@ -328,13 +328,21 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
       const sentCount = typeof data.sentCount === 'number' ? data.sentCount : selectedRecipients.length;
       const failedCount = typeof data.failedCount === 'number' ? data.failedCount : 0;
       const skippedCount = typeof data.skippedCount === 'number' ? data.skippedCount : 0;
+      const brevoSentCount = typeof data.brevoSentCount === 'number' ? data.brevoSentCount : 0;
+      const fallbackUsed = !!data.fallbackUsed || brevoSentCount > 0;
+      const brevoNote = brevoSentCount > 0 ? ` — ${brevoSentCount} delivered via Brevo fallback` : '';
 
       if (data.dailyLimitReached) {
-        setStatusMessage({ type: 'error', text: `Daily limit reached. Sent ${sentCount}, skipped ${skippedCount}.` });
+        // If a fallback was attempted but both providers are now exhausted,
+        // make that explicit; otherwise keep the plain daily-limit message.
+        const text = fallbackUsed
+          ? `Daily limits reached on both providers. Sent ${sentCount}, skipped ${skippedCount}.`
+          : `Daily limit reached. Sent ${sentCount}, skipped ${skippedCount}.`;
+        setStatusMessage({ type: 'error', text });
       } else if (failedCount > 0) {
         setStatusMessage({ type: 'error', text: `Sent ${sentCount}, failed ${failedCount}.` });
       } else {
-        setStatusMessage({ type: 'success', text: `Campaign sent successfully to ${sentCount} recipients!` });
+        setStatusMessage({ type: 'success', text: `Campaign sent to ${sentCount} recipients${brevoNote}.` });
       }
 
       // Only celebrate when something sent and nothing failed.
