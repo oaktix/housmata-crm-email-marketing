@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.email_campaigns (
     sent_by uuid REFERENCES public.staff_members(id) ON DELETE SET NULL,
     sent_count integer DEFAULT 0,
     open_count integer DEFAULT 0,
+    config jsonb,
     created_at timestamp with time zone DEFAULT now()
 );
 
@@ -107,6 +108,11 @@ ALTER TABLE public.email_logs
 
 CREATE INDEX IF NOT EXISTS email_logs_provider_message_id_idx ON public.email_logs (provider_message_id);
 CREATE INDEX IF NOT EXISTS email_logs_sent_at_idx             ON public.email_logs (sent_at);
+
+-- ============================================================
+-- Campaign config (for resend last campaign) addition
+-- ============================================================
+ALTER TABLE public.email_campaigns ADD COLUMN IF NOT EXISTS config jsonb;
 
 CREATE OR REPLACE FUNCTION public.reconcile_email_open_stats()
 RETURNS void

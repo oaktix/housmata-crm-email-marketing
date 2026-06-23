@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, Plus, Trash2, Eye, EyeOff, Sparkles, AlertCircle, Building2, Send, Check, Paperclip, Image as ImageIcon, Link2, Upload, Download } from 'lucide-react';
+import { Mail, Plus, Trash2, Eye, EyeOff, Sparkles, AlertCircle, Building2, Send, Check, Paperclip, Image as ImageIcon, Link2, Upload, Download, History } from 'lucide-react';
 import { compileEmailTemplate, EmailCategory } from '@/utils/templates';
 import confetti from 'canvas-confetti';
 
@@ -52,8 +52,13 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
   const [filterQuery, setFilterQuery] = useState('');
   const [isPreviewDark, setIsPreviewDark] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingLast, setLoadingLast] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | null, text: string }>({ type: null, text: '' });
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Guards against the initial /api/users effect clobbering a selection that
+  // "Resend Last Campaign" set before users finished loading.
+  const lastCampaignLoadedRef = useRef(false);
 
   // File input + textarea refs
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -190,6 +195,8 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
       .then(res => res.json())
       .then(data => {
         setUsers(data);
+        // Don't overwrite a selection already set by "Resend Last Campaign".
+        if (lastCampaignLoadedRef.current) return;
         if (!initialEmails || initialEmails.length === 0) {
           if (data.length > 0) {
             setSelectedEmails(data.map((u: any) => u.email));
@@ -238,6 +245,52 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
     }
   }, [compiledHtml, isPreviewDark]);
 
+  const handleLoadLastCampaign = async () => {
+    setLoadingLast(true);
+    setStatusMessage({ type: null, text: '' });
+    try {
+      const res = await fetch('/api/campaigns/last');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load last campaign.');
+
+      const payload = data.campaign;
+      if (!payload) {
+        setStatusMessage({ type: 'error', text: 'No previous campaign found.' });
+        return;
+      }
+
+      setCategory(payload.category as EmailCategory);
+      setSubject(payload.subject ?? '');
+      setTitle(payload.title ?? '');
+      setBody(payload.body ?? '');
+      setActionText(payload.actionText ?? '');
+      setActionUrl(payload.actionUrl ?? '');
+      if (Array.isArray(payload.properties) && payload.properties.length > 0) {
+        setProperties(payload.properties);
+      }
+      if (Array.isArray(payload.features) && payload.features.length > 0) {
+        setFeatures(payload.features);
+      }
+      setAttachments(payload.attachments || []);
+
+      // Preselect the previous audience, intersected with currently loaded
+      // users. The button is gated on users being loaded, so `users` is
+      // populated here; only select emails that still exist in the list.
+      const recipientEmails: string[] = (data.recipients || []).map((r: any) => r.email);
+      const known = new Set(users.map(u => u.email));
+      setSelectedEmails(recipientEmails.filter(e => known.has(e)));
+      // Backstop: prevent the initial /api/users effect from clobbering this
+      // selection if it resolves after this handler.
+      lastCampaignLoadedRef.current = true;
+
+      setStatusMessage({ type: 'success', text: 'Loaded last campaign — review and click Send to resend.' });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoadingLast(false);
+    }
+  };
+
   const handleSendCampaign = async () => {
     if (selectedEmails.length === 0) {
       setStatusMessage({ type: 'error', text: 'Please select at least one recipient.' });
@@ -271,12 +324,27 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to dispatch campaign.');
 
-      setStatusMessage({ type: 'success', text: `Campaign sent successfully to ${selectedRecipients.length} recipients!` });
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
+      // Prefer server-provided counts; fall back to local count for older responses.
+      const sentCount = typeof data.sentCount === 'number' ? data.sentCount : selectedRecipients.length;
+      const failedCount = typeof data.failedCount === 'number' ? data.failedCount : 0;
+      const skippedCount = typeof data.skippedCount === 'number' ? data.skippedCount : 0;
+
+      if (data.dailyLimitReached) {
+        setStatusMessage({ type: 'error', text: `Daily limit reached. Sent ${sentCount}, skipped ${skippedCount}.` });
+      } else if (failedCount > 0) {
+        setStatusMessage({ type: 'error', text: `Sent ${sentCount}, failed ${failedCount}.` });
+      } else {
+        setStatusMessage({ type: 'success', text: `Campaign sent successfully to ${sentCount} recipients!` });
+      }
+
+      // Only celebrate when something sent and nothing failed.
+      if (sentCount > 0 && failedCount === 0 && !data.dailyLimitReached) {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      }
     } catch (err: any) {
       setStatusMessage({ type: 'error', text: err.message });
     } finally {
@@ -392,10 +460,20 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
       {/* Editor Controls */}
       <div className="editor-container">
         <div className="card">
-          <h2 className="card-title">
-            <Mail size={20} color="var(--brand-mint)" />
-            Configure Campaign Alert
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <h2 className="card-title" style={{ marginBottom: 0 }}>
+              <Mail size={20} color="var(--brand-mint)" />
+              Configure Campaign Alert
+            </h2>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '6px 12px', fontSize: '12px' }}
+              disabled={loadingLast || users.length === 0}
+              onClick={handleLoadLastCampaign}
+            >
+              <History size={14} /> {loadingLast ? 'Loading...' : 'Resend Last Campaign'}
+            </button>
+          </div>
 
           {statusMessage.type && (
             <div className={`alert-toast ${statusMessage.type}`}>
