@@ -109,6 +109,10 @@ ALTER TABLE public.email_logs
 CREATE INDEX IF NOT EXISTS email_logs_provider_message_id_idx ON public.email_logs (provider_message_id);
 CREATE INDEX IF NOT EXISTS email_logs_sent_at_idx             ON public.email_logs (sent_at);
 
+-- Provider that delivered each email ('resend' | 'brevo'); supports the
+-- Brevo daily-quota fallback.
+ALTER TABLE public.email_logs ADD COLUMN IF NOT EXISTS provider text;
+
 -- ============================================================
 -- Campaign config (for resend last campaign) addition
 -- ============================================================
