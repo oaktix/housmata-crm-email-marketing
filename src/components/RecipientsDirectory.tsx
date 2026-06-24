@@ -89,8 +89,11 @@ export default function RecipientsDirectory({ onComposeEmails }: RecipientsDirec
         }
         .search-box {
           position: relative;
-          flex: 1;
-          min-width: 280px;
+          flex: 1 1 220px;
+          min-width: 0;
+        }
+        .role-filter {
+          width: 160px;
         }
         .search-icon {
           position: absolute;
@@ -124,7 +127,7 @@ export default function RecipientsDirectory({ onComposeEmails }: RecipientsDirec
         }
         .users-list {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
           gap: 16px;
           margin-top: 8px;
         }
@@ -204,6 +207,15 @@ export default function RecipientsDirectory({ onComposeEmails }: RecipientsDirec
           from { opacity: 0; transform: translateY(-10px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @media (max-width: 600px) {
+          .search-box,
+          .role-filter,
+          .select-all-btn {
+            width: 100%;
+            min-width: 0;
+            flex: 1 1 100%;
+          }
+        }
       `}</style>
 
       {/* Directory Title */}
@@ -228,8 +240,7 @@ export default function RecipientsDirectory({ onComposeEmails }: RecipientsDirec
           </div>
 
           <select
-            className="form-control"
-            style={{ width: '160px' }}
+            className="form-control role-filter"
             value={selectedRole}
             onChange={e => setSelectedRole(e.target.value)}
           >
@@ -239,7 +250,7 @@ export default function RecipientsDirectory({ onComposeEmails }: RecipientsDirec
             ))}
           </select>
 
-          <button className="btn btn-secondary" onClick={toggleSelectAll} style={{ height: '45px' }}>
+          <button className="btn btn-secondary select-all-btn" onClick={toggleSelectAll} style={{ height: '45px' }}>
             Select/Deselect All Filtered
           </button>
         </div>

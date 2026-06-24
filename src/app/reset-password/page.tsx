@@ -184,6 +184,11 @@ export default function ResetPasswordPage() {
           border: 1px solid rgba(16, 185, 129, 0.3);
           color: var(--status-success);
         }
+        @media (max-width: 480px) {
+          .reset-card {
+            padding: 28px 20px;
+          }
+        }
       `}</style>
 
       <div className="reset-card">
