@@ -128,6 +128,9 @@ export default function DashboardOverview() {
           .summary-grid {
             grid-template-columns: repeat(2, 1fr);
           }
+          .editor-grid-responsive {
+            grid-template-columns: 1fr !important;
+          }
         }
         @media (max-width: 550px) {
           .summary-grid {

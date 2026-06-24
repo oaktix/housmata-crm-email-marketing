@@ -219,6 +219,11 @@ export default function LoginPage() {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @media (max-width: 480px) {
+          .login-card {
+            padding: 28px 20px;
+          }
+        }
       `}</style>
 
       <div className="login-card">

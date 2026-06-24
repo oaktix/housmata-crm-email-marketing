@@ -110,10 +110,12 @@ export default function DashboardPage() {
           .sidebar {
             display: ${mobileMenuOpen ? 'flex' : 'none'};
             position: fixed;
-            top: 80px;
+            top: 64px;
             left: 24px;
             right: 24px;
             z-index: 90;
+            max-height: calc(100vh - 64px - 24px);
+            overflow-y: auto;
             box-shadow: var(--shadow-lg);
           }
           .mobile-nav-toggle {

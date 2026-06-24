@@ -521,6 +521,29 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
         }
         .alert-toast.success { background-color: rgba(16, 185, 129, 0.15); color: var(--status-success); }
         .alert-toast.error { background-color: rgba(239, 68, 68, 0.15); color: var(--status-danger); }
+        .field-row-2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        .prop-row-2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .feature-row-3 {
+          display: grid;
+          grid-template-columns: 0.2fr 0.8fr 1fr;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .input-action-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
         @media (max-width: 900px) {
           .editor-grid-responsive {
             grid-template-columns: 1fr !important;
@@ -529,6 +552,12 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
             position: relative;
             top: 0;
             height: 500px;
+          }
+          .field-row-2,
+          .prop-row-2,
+          .feature-row-3,
+          .input-action-row {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
@@ -583,7 +612,7 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="field-row-2">
             <div className="form-group">
               <label className="form-label">Main Heading</label>
               <input 
@@ -679,7 +708,7 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
               />
               {properties.map((prop, idx) => (
                 <div key={idx} className="dynamic-row">
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                  <div className="prop-row-2">
                     <input type="text" className="form-control" placeholder="Property Title" value={prop.title} onChange={e => {
                       const copy = [...properties]; copy[idx].title = e.target.value; setProperties(copy);
                     }} />
@@ -692,7 +721,7 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
                       const copy = [...properties]; copy[idx].location = e.target.value; setProperties(copy);
                     }} />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', marginBottom: '8px' }}>
+                  <div className="input-action-row">
                     <input type="text" className="form-control" placeholder="Image URL" value={prop.image} onChange={e => {
                       const copy = [...properties]; copy[idx].image = e.target.value; setProperties(copy);
                     }} />
@@ -705,7 +734,7 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
                       <ImageIcon size={14} /> {propUploadingIdx === idx ? 'Uploading...' : 'Upload image'}
                     </button>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', marginBottom: '8px' }}>
+                  <div className="input-action-row">
                     <input type="text" className="form-control" placeholder="Property URL" value={prop.url} onChange={e => {
                       const copy = [...properties]; copy[idx].url = e.target.value; setProperties(copy);
                     }} />
@@ -746,7 +775,7 @@ export default function EmailEditor({ initialEmails }: EmailEditorProps) {
               </label>
               {features.map((feat, idx) => (
                 <div key={idx} className="dynamic-row">
-                  <div style={{ display: 'grid', gridTemplateColumns: '0.2fr 0.8fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                  <div className="feature-row-3">
                     <input type="text" className="form-control" placeholder="Icon" value={feat.icon} onChange={e => {
                       const copy = [...features]; copy[idx].icon = e.target.value; setFeatures(copy);
                     }} />
